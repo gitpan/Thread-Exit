@@ -3,7 +3,7 @@ package Thread::Exit;
 # Make sure we have version info for this module
 # Make sure we do everything by the book from now on
 
-our $VERSION = '0.02';
+our $VERSION = '0.03';
 use strict;
 
 # Make sure we only load stuff when we actually need it
@@ -91,7 +91,7 @@ BEGIN {
         } elsif (exists( &Apache::exit )) {
             goto &Apache::exit;
         }
-        goto &CORE::exit;
+        CORE::exit( shift ); # goto or @_ do not work for some reason
     };
 } #BEGIN
 

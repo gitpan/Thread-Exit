@@ -6,7 +6,7 @@ BEGIN {				# Magic Perl CORE pragma
 }
 
 use Thread::Exit; # cannot have Test use this, otherwise exit() isn't changed
-use Test::More tests => 21;
+use Test::More tests => 25;
 
 use threads;
 use threads::shared;
@@ -22,48 +22,58 @@ can_ok( 'Thread::Exit',qw(
 my $check = "This is the check string";
 
 my $thread = threads->new( sub { exit( $check ) } );
-is( scalar($thread->join),$check,		'check exit from thread' );
+is( scalar($thread->join),$check,	'check exit from thread' );
 
 $thread = threads->new( sub { exit( [$check] ) } );
-is( join('',@{$thread->join}),$check,		'check exit from thread' );
+is( join('',@{$thread->join}),$check,	'check exit from thread' );
 
 $thread = threads->new( sub { exit( $check,$check ) } );
-is( join('',$thread->join),$check,		'check exit from thread' );
+is( join('',$thread->join),$check,	'check exit from thread' );
 
 ($thread) = threads->new( sub { exit( $check,$check ) } );
-is( join('',$thread->join),$check.$check,	'check exit from thread' );
+is( join('',$thread->join),$check.$check,'check exit from thread' );
 
 $thread = threads->new( sub { exit( $check ) } );
-is( join('',$thread->join),$check,		'check exit from thread' );
+is( join('',$thread->join),$check,	'check exit from thread' );
 
 my $begin : shared = '';
 my $end : shared = '';
-ok( Thread::Exit->begin( 'begin' ),		'check begin() setting' );
-ok( Thread::Exit->end( 'main::end' ),		'check end() setting' );
+ok( Thread::Exit->begin( 'begin' ),	'check begin() setting' );
+ok( Thread::Exit->end( 'main::end' ),	'check end() setting' );
 
 threads->new( sub { is( $begin,$check,'check result of BEGIN' ) } )->join;
 is( $end,$check,				'check result of END' );
 
 $begin = $end = '';
-ok( !Thread::Exit->inherit( 0 ),		'check inherit() setting' );
+ok( !Thread::Exit->inherit( 0 ),	'check inherit() setting' );
 threads->new( sub { is( $begin,'','check result of BEGIN' ) } )->join;
 is( $end,'',					'check result of END' );
 
-ok( Thread::Exit->inherit( 1 ),			'check inherit() setting' );
+ok( Thread::Exit->inherit( 1 ),		'check inherit() setting' );
 threads->new( sub { is( $begin,$check,'check result of BEGIN' ) } )->join;
 is( $end,$check, 				'check result of END' );
 
 $begin = $end = '';
-ok( !Thread::Exit->end( undef ),		'check end() setting' );
+ok( !Thread::Exit->end( undef ),	'check end() setting' );
 threads->new( sub {
  Thread::Exit->end( \&end );
  is( $begin,$check,'check result of BEGIN' );
 } )->join;
-is( $end,$check, 				'check result of END' );
+is( $end,$check, 			'check result of END' );
 
 eval q(sub Apache::exit { $end = shift });
 exit( '' );
 is( $end,'', 				'check result of exit()' );
+
+my $file = "script";
+ok( open( my $handle,'>',$file ),	'check opening of file' );
+ok( print( $handle (<<EOD)),		'check printing to file' );
+\@INC = qw(@INC);
+use Thread::Exit ();
+threads->new( sub {Thread::Exit->ismain; exit( 1 )} )->join;
+EOD
+cmp_ok( system( "$^X script" ),'==',256,'check exit result' );
+ok( unlink( $file ),			'check unlinking' );
 
 sub begin { $begin = $check}
 sub end   { $end   = $check}

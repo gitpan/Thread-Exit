@@ -1,3 +1,9 @@
+0.03	6 September 2002
+	Fixed some problems with real exit() in main thread + regression
+	test added.  Suggested by Rafael Garcia-Suarez.
+
+	Test for "ismain" added.
+
 0.02	5 September 2002
 	Added "begin" subroutine support + documentation + test-suite.
 	Nick Ing-Simmons suggested this on p5p.  It seemed like an easy
