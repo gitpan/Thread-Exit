@@ -3,7 +3,7 @@ package Thread::Exit;
 # Make sure we have version info for this module
 # Make sure we do everything by the book from now on
 
-$VERSION = '0.06';
+$VERSION = '0.07';
 use strict;
 
 # Make sure we only load stuff when we actually need it
@@ -11,10 +11,8 @@ use strict;
 use load;
 
 # Make sure we can do threads
-# Make sure we can serialize
 
 use threads ();
-use Thread::Serialize ();
 
 # Thread local flag to indicate we're exiting
 
@@ -47,30 +45,29 @@ BEGIN {
 #   Save the original reference of sub to execute
 #   Creates a new thread with a sub
 #    Execute the begin routine (if there is one)
-#    Execute the original sub within an eval {} context and save returnn values
-#    Save the result of the eval
-#    Execute the end routine (if there is one)
+#    Execute the original sub within an eval {} context and save return values
+#    Save result of eval (args to return if $exiting, or a warning to re-raise)
 
         $new->( $class,sub {  # closure!
             &$begin if $begin;
-            my @return = eval { $sub->( @_ ) };
-            my $data = $@;
-            &$end if $end;
+            my $return = [eval { $sub->( @_ ) }];
 
 #    If we're exiting
-#     Make sure we remove what was there to preserve the data
-#     Thaw the data to be returned
+#     Fetch our arguments for a join()ing thread from $@ (@$return is empty)
+#     Clear $@ for the benefit of end routines (if any)
 #    Elsif we died in another way inside the thread
 #     Show the error
+#    Execute the end routine (if there is one)
 #    Return whatever we need to return
 
             if ($exiting) {
-                chomp( $data );
-                @return = Thread::Serialize::thaw( $data );
-            } elsif ($data) {
-                warn $data;
+                $return = $@;
+                $@ = '';
+            } elsif ($@) {
+                warn $@;
             }
-            return $wantarray ? @return : $return[0];
+            $end->( $exiting ) if $end;
+            return $wantarray ? @{$return} : $return->[0];
         },@_ );
     };
 
@@ -89,7 +86,7 @@ BEGIN {
     *CORE::GLOBAL::exit = sub {
         if ($CLONE) {
             $exiting = 1;
-            die Thread::Serialize::freeze( @_ ).$/;
+            die [@_];
         } elsif (exists( &Apache::exit )) {
             goto &Apache::exit;
         }
@@ -373,6 +370,10 @@ The "end" class method sets and returns the subroutine that will be executed
 B<after> the current thread is finished but B<before> it will return via a
 join().
 
+The "end" subroutine is passed a single flag which is true if the thread
+is exiting by calling exit().  Please note that the system variable C<$@>
+is also set if the thread exited because of a compilation or execution error.
+
 The first input parameter is the name or a reference to the subroutine that
 should be executed after this thread is finished.  It can be specified as a
 name or as a code reference.  No changes will be made if no parameters are
@@ -447,14 +448,6 @@ Apache::exit() subroutine exists, then that exit routine will be preferred
 over the CORE::exit() routine when exiting from the thread in which the
 first C<use Thread::Exit> occurred.
 
-=head1 CAVEATS
-
-Because transport of data structures between threads is severely limited in
-the current threads implementation (perl 5.8.0), data structures need to be
-serialized.  This is achieved by using the L<Thread::Serialize> library.
-Please check that module for information about the limitations (of any) of
-data structure transport between threads.
-
 =head1 TODO
 
 Examples should be added.
@@ -468,6 +461,9 @@ Please report bugs to <perlbugs@dijkmat.nl>.
 =head1 ACKNOWLEDGEMENTS
 
 Nick Ing-Simmons and Rafael Garcia-Suarez for their suggestions and support.
+Mike Pomraning for pointing out that C<die()> can also take a reference as
+a parameter inside an C<eval()>, so that the dependency on Thread::Serialize
+could be removed.
 
 =head1 COPYRIGHT
 
@@ -477,6 +473,6 @@ modify it under the same terms as Perl itself.
 
 =head1 SEE ALSO
 
-L<threads>, L<Thread::Serialize>.
+L<threads>.
 
 =cut

@@ -8,6 +8,6 @@ WriteMakefile (
  ABSTRACT	=> 'provide thread-local exit(), BEGIN {} and END {}',
  VERSION_FROM	=> 'lib/Thread/Exit.pm',
  PREREQ_PM	=> {
-		   Thread::Serialize => '0.06',
+		    'load'	=> '0.12',
                    },
 );

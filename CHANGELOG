@@ -1,3 +1,11 @@
+0.07	8 October 2003
+	Added dependency on load.pm, as that was somehow missed before.
+
+	Mike Pomraning pointed out that Thread::Serialize wasn't necessary
+	at all, as die() can take a reference inside an eval.  Changed code
+	according his suggestions and added support for exiting flag to the
+	end subroutine.  Removed dependency on Thread::Serialize.
+
 0.06	30 August 2003
 	Missed the fact that threads->create is a synonym for threads->new.
 	Before, threads->create still referred to the original threads->new
