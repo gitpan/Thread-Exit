@@ -3,7 +3,7 @@ package Thread::Exit;
 # Make sure we have version info for this module
 # Make sure we do everything by the book from now on
 
-$VERSION = '0.05';
+$VERSION = '0.06';
 use strict;
 
 # Make sure we only load stuff when we actually need it
@@ -16,10 +16,8 @@ use load;
 use threads ();
 use Thread::Serialize ();
 
-# Thread local reference to original threads::new (set in BEGIN)
 # Thread local flag to indicate we're exiting
 
-my $new;
 my $exiting = 0;
 
 # Clone detection logic
@@ -40,7 +38,7 @@ our $end;
 
 BEGIN {
     no strict 'refs'; no warnings 'redefine';
-    $new = \&threads::new;
+    my $new = \&threads::new;
     *threads::new = sub {
         my $class = shift;
         my $sub = shift;
@@ -53,7 +51,7 @@ BEGIN {
 #    Save the result of the eval
 #    Execute the end routine (if there is one)
 
-        $new->( $class,sub {
+        $new->( $class,sub {  # closure!
             &$begin if $begin;
             my @return = eval { $sub->( @_ ) };
             my $data = $@;
@@ -75,6 +73,10 @@ BEGIN {
             return $wantarray ? @return : $return[0];
         },@_ );
     };
+
+# Make sure "create" does the same
+
+    *threads::create = \&threads::new;
 
 #  Steal the system exit with a sub
 #   If we're in a thread started after this was loaded
@@ -240,7 +242,7 @@ __END__
 
 =head1 NAME
 
-Thread::Exit - provide thread-local exit(), BEGIN {} and END {}
+Thread::Exit - provide thread-local exit(), BEGIN {}, END {} and exited()
 
 =head1 SYNOPSIS
 
@@ -252,7 +254,7 @@ Thread::Exit - provide thread-local exit(), BEGIN {} and END {}
      inherit => 1,         # make all new threads inherit (default: 1)
     ;
 
-    $thread = threads->new( sub { exit( "We've exited" ) } );
+    $thread = threads->new( sub { exit( "We've exited" ) } ); # or "create"
     print $thread->join;            # prints "We've exited"
 
     Thread::Exit->ismain;           # mark this thread as main thread
@@ -297,7 +299,7 @@ subroutines can be chained together if necessary.
 
 The third feature is that you can specify a subroutine that will be executed
 B<after> the thread is done, but B<before> the thread returns to the parent
-thread.  This is similar to the END subroutine, but on a thread basis.
+thread.  This is similar to the END subroutine, but on a per-thread basis.
 Multiple "end" subroutines can be chained together if necessary.
 
 =head1 CLASS METHODS

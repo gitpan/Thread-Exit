@@ -19,7 +19,7 @@ EOD
 } #BEGIN
 
 use Thread::Exit; # cannot have Test use this, otherwise exit() isn't changed
-use Test::More tests => 25;
+use Test::More tests => 26;
 use strict;
 use warnings;
 
@@ -33,6 +33,8 @@ can_ok( 'Thread::Exit',qw(
  inherit
  ismain
 ) );
+
+ok( \&threads::new eq \&threads::create,"check if create synonym ok" );
 
 my $check = "This is the check string";
 
@@ -85,7 +87,7 @@ ok( open( my $handle,'>',$file ),	'check opening of file' );
 ok( print( $handle (<<EOD)),		'check printing to file' );
 \@INC = qw(@INC);
 use Thread::Exit ();
-threads->new( sub {Thread::Exit->ismain; exit( 1 )} )->join;
+threads->create( sub {Thread::Exit->ismain; exit( 1 )} )->join;
 EOD
 cmp_ok( system( "$^X script" ),'==',256,'check exit result' );
 ok( unlink( $file ),			'check unlinking' );

@@ -1,3 +1,11 @@
+0.06	30 August 2003
+	Missed the fact that threads->create is a synonym for threads->new.
+	Before, threads->create still referred to the original threads->new
+	rather than the one we put in its place.  Now fixed thanks to spot
+	by Tom Brettin.  Adapted test-suite as well.
+
+	Changed "$new" package lexical into a closure.
+
 0.05	13 August 2003
 	Cleaned up Makefile.PL and updated copyright info.  Increased
 	dependency on Thread::Serialize to 0.06.
