@@ -1,3 +1,10 @@
+0.04	30 September 2002
+        Use "load.pm" instead of AutoLoader.  Increased dependency on
+        Thread::Serialize to 0.05, which also uses "load.pm".
+
+        Removed "our" from $VERSION, should shave off some bytes in
+        memory usage, as found from testing with Benchmark::Thread::Size.
+
 0.03	6 September 2002
 	Fixed some problems with real exit() in main thread + regression
 	test added.  Suggested by Rafael Garcia-Suarez.
