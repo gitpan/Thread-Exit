@@ -3,7 +3,7 @@ package Thread::Exit;
 # Make sure we have version info for this module
 # Make sure we do everything by the book from now on
 
-$VERSION = '0.04';
+$VERSION = '0.05';
 use strict;
 
 # Make sure we only load stuff when we actually need it
@@ -39,7 +39,7 @@ our $end;
 #   Save the context
 
 BEGIN {
-    no strict 'refs';
+    no strict 'refs'; no warnings 'redefine';
     $new = \&threads::new;
     *threads::new = sub {
         my $class = shift;
@@ -91,7 +91,7 @@ BEGIN {
         } elsif (exists( &Apache::exit )) {
             goto &Apache::exit;
         }
-        CORE::exit( shift ); # goto or @_ do not work for some reason
+        CORE::exit( shift || 0 ); # goto or @_ do not work for some reason
     };
 } #BEGIN
 
@@ -463,9 +463,13 @@ Elizabeth Mattijsen, <liz@dijkmat.nl>.
 
 Please report bugs to <perlbugs@dijkmat.nl>.
 
+=head1 ACKNOWLEDGEMENTS
+
+Nick Ing-Simmons and Rafael Garcia-Suarez for their suggestions and support.
+
 =head1 COPYRIGHT
 
-Copyright (c) 2002 Elizabeth Mattijsen <liz@dijkmat.nl>. All rights
+Copyright (c) 2002-2003 Elizabeth Mattijsen <liz@dijkmat.nl>. All rights
 reserved.  This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
 

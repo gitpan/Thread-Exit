@@ -1,3 +1,10 @@
+0.05	13 August 2003
+	Cleaned up Makefile.PL and updated copyright info.  Increased
+	dependency on Thread::Serialize to 0.06.
+
+	Fixed some warnings that could be fixed.  Added message for those
+	warnings that can not be fixed (for now).
+
 0.04	30 September 2002
         Use "load.pm" instead of AutoLoader.  Increased dependency on
         Thread::Serialize to 0.05, which also uses "load.pm".

@@ -5,8 +5,23 @@ BEGIN {				# Magic Perl CORE pragma
     }
 }
 
+BEGIN {
+    warn <<EOD if -t STDERR;
+
+
+Some warnings may be displayed during testing.  This shouldn't happen, but
+it does.  This seems to be an interaction between Thread::Exit, Test::More
+and threads.  In normal usage, Thread::Exit should be clean running with
+warnings enabled.  If you should find warnings in such a situation, please
+report these.  Thank you for your attention.
+
+EOD
+} #BEGIN
+
 use Thread::Exit; # cannot have Test use this, otherwise exit() isn't changed
 use Test::More tests => 25;
+use strict;
+use warnings;
 
 use threads;
 use threads::shared;
