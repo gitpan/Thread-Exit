@@ -1,0 +1,25 @@
+README for Thread::Exit
+
+This module add two features to threads that are sorely missed by some: a
+thread local exit() (that only exits the thread and not the whole program)
+and the equivalent of an END subroutine (which is executed when the thread
+is done, but before the thread returns).
+
+                         *** A note of CAUTION ***
+
+This module only functions on Perl versions 5.8.0 and later.  And then
+only when threads are enabled with -Dusethreads.  It is of no use with
+any version of Perl before 5.8.0 or without threads enabled.
+
+                         *************************
+
+Copyright (c) 2002 Elizabeth Mattijsen <liz@dijkmat.nl>. All rights
+reserved.  This program is free software; you can redistribute it and/or
+modify it under the same terms as Perl itself.
+
+The build is standard:
+
+perl Makefile.PL
+make
+make test
+make install
