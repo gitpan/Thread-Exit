@@ -3,7 +3,7 @@ package Thread::Exit;
 # Make sure we have version info for this module
 # Make sure we do everything by the book from now on
 
-our $VERSION = '0.01';
+our $VERSION = '0.02';
 use strict;
 
 # Make sure we only load stuff when we actually need it
@@ -16,16 +16,20 @@ use AutoLoader 'AUTOLOAD';
 use threads ();
 use Thread::Serialize ();
 
-# Clone detection logic
 # Thread local reference to original threads::new (set in BEGIN)
 # Thread local flag to indicate we're exiting
-# Thread local flag for automatic inheritance
-# Thread local reference to END routine that executes after thread has ended
 
-my $CLONE = 0;
 my $new;
 my $exiting = 0;
-our $automatic = 0;
+
+# Clone detection logic
+# Thread local flag for automatic inheritance
+# Thread local reference to BEGIN routine that executes after thread has ended
+# Thread local reference to END routine that executes after thread has ended
+
+our $CLONE = 0;
+our $inherit = 1;
+our $begin;
 our $end;
 
 # Make sure we do this before anything else
@@ -44,11 +48,13 @@ BEGIN {
 
 #   Save the original reference of sub to execute
 #   Creates a new thread with a sub
+#    Execute the begin routine (if there is one)
 #    Execute the original sub within an eval {} context and save returnn values
 #    Save the result of the eval
 #    Execute the end routine (if there is one)
 
         $new->( $class,sub {
+            &$begin if $begin;
             my @return = eval { $sub->( @_ ) };
             my $data = $@;
             &$end if $end;
@@ -102,10 +108,10 @@ BEGIN {
 sub CLONE {
 
 # Mark this thread as a child
-# Disable end sub if not automatically inheriting
+# Disable begin and end sub if not automatically inheriting
 
     $CLONE++;
-    $end = undef unless $automatic;
+    $begin = $end = undef unless $inherit;
 } #CLONE
 
 #---------------------------------------------------------------------------
@@ -124,7 +130,46 @@ __END__
 #      3 flag: chain before (-1), after (1) or replace (0 = default)
 # OUT: 1 current code reference
 
-sub end {
+sub begin { shift; $begin = _setsub( $begin,@_ ) } #begin
+
+#---------------------------------------------------------------------------
+#  IN: 1 class (ignored)
+#      2 new subroutine specification (undef to disable)
+#      3 flag: chain before (-1), after (1) or replace (0 = default)
+# OUT: 1 current code reference
+
+sub end { shift; $end = _setsub( $end,@_ ) } #end
+
+#---------------------------------------------------------------------------
+#  IN: 1 class (ignored)
+#      2 new setting of inherit flag
+# OUT: 1 current setting of inherit flag
+
+sub inherit {
+
+# Set new inherit flag if one specified
+# Return current setting
+
+    $inherit = $_[1] if @_ > 1;
+    $inherit;
+} #inherit
+
+#---------------------------------------------------------------------------
+#  IN: 1 class (ignored)
+
+sub ismain { $CLONE = 0 } #ismain
+
+#---------------------------------------------------------------------------
+
+# internal subroutines
+
+#---------------------------------------------------------------------------
+#  IN: 1 current subroutine specification
+#      2 new subroutine specification (undef to disable)
+#      3 flag: chain before (-1), after (1) or replace (0 = default)
+# OUT: 1 new code reference
+
+sub _setsub {
 
 # If we have a new subroutine specification
 #  Get new setting
@@ -132,10 +177,11 @@ sub end {
 #   Make the subref absolute if it isn't yet
 #   Convert to a code ref
 
-    if (@_ > 1) {
-        my $new = $_[1];
+    my $current = shift;
+    if (@_) {
+        my $new = $_[0];
         if ($new and !ref($new)) {
-            $new = caller().'::'.$new unless $new =~ m#::#;
+            $new = caller(2).'::'.$new unless $new =~ m#::#;
             $new = \&$new;
         }
 
@@ -146,12 +192,12 @@ sub end {
 #   Else (chaining after current)
 #    Create closure anonymous sub with old one first
 
-        if ($end and $new and $_[2]) {
-            my $old = $end;
-            if ($_[2] < 0) {
-	        $end = sub { &$new; &$old };
+        if ($current and $new and $_[1]) {
+            my $old = $current;
+            if ($_[1] < 0) {
+	        $current = sub { &$new; &$old };
             } else {
-	        $end = sub { &$old; &$new };
+	        $current = sub { &$old; &$new };
             }
 
 #  Else (resetting or replacing or no old)
@@ -159,27 +205,15 @@ sub end {
 # Return the current code reference
 
         } else {
-            $end = $new;
+            $current = $new;
         }
     }
-    $end;
-} #end
+    $current;
+} #_setsub
 
 #---------------------------------------------------------------------------
-#  IN: 1 class (ignored)
-#      2 new setting of automatic flag
-# OUT: 1 current setting of automatic flag
 
-sub automatic {
-
-# Set new automatic flag if one specified
-# Return current setting
-
-    $automatic = $_[1] if @_ > 1;
-    $automatic;
-} #automatic
-#  IN: 1 class (ignored)
-#      2..N method/value hash
+# standard Perl features
 
 #---------------------------------------------------------------------------
 #  IN: 1 class
@@ -195,7 +229,7 @@ sub import {
     my ($class,%param) = @_;
     while (my ($method,$value) = each %param) {
         die "Cannot call method $method during initialization\n"
-         unless $method =~ m#^(?:automatic|end)$#;
+         unless $method =~ m#^(?:begin|end|inherit)$#;
         $class->$method( $value );
     }
 } #import
@@ -204,26 +238,34 @@ sub import {
 
 =head1 NAME
 
-Thread::Exit - provide thread-local exit() and END {}
+Thread::Exit - provide thread-local exit(), BEGIN {} and END {}
 
 =head1 SYNOPSIS
 
-    use Thread::Exit (); # just make exit() thread local
+    use Thread::Exit ();   # just make exit() thread local
+
     use Thread::Exit
-     end => 'end_sub',   # set sub to exec at end of thread (default: none)
-     automatic => 1,     # make all new threads end the same (default: 0)
+     begin => 'begin_sub', # sub to exec at beginning of thread (default: none)
+     end => 'end_sub',     # sub to exec at end of thread (default: none)
+     inherit => 1,         # make all new threads inherit (default: 1)
     ;
+
+    $thread = threads->new( sub { exit( "We've exited" ) } );
+    print $thread->join;            # prints "We've exited"
+
+    Thread::Exit->ismain;           # mark this thread as main thread
+
+    Thread::Exit->begin( \$begin_sub ); # set/adapt BEGIN sub later
+    Thread::Exit->begin( undef );       # disable BEGIN sub
+    $begin = Thread::Exit->begin;
 
     Thread::Exit->end( \$end_sub ); # set/adapt END sub later
     Thread::Exit->end( undef );     # disable END sub
     $end = Thread::Exit->end;
 
-    Thread::Exit->automatic( 1 );   # make all new threads use this end sub
-    Thread::Exit->automatic( 0 );   # new threads won't use this end sub
-    $automatic = Thread::Exit->automatic;
-
-    $thread = threads->new( sub { exit( "We've exited" ) } );
-    print $thread->join;            # prints "We've exited"
+    Thread::Exit->inherit( 1 );     # make all new threads inherit settings
+    Thread::Exit->inherit( 0 );     # new threads won't inherit settings
+    $inherit = Thread::Exit->inherit;
 
 =head1 DESCRIPTION
 
@@ -236,7 +278,7 @@ Thread::Exit - provide thread-local exit() and END {}
 
                   *************************
 
-This module add two features to threads that are sorely missed by some.
+This module adds three features to threads that are sorely missed by some.
 
 The first feature is that you can use exit() within a thread to return() from
 that thread only.  Without this module, exit() stops B<all> threads and exits
@@ -245,18 +287,161 @@ module, exit() functions just as return() (including passing back values to
 the parent thread).
 
 The second feature is that you can specify a subroutine that will be executed
+B<after> the thread is started, but B<before> the subroutine of which the
+thread consists, is started.  This is an alternate implementation of the
+CLONE subroutine, which differs by being B<really> executed inside the context
+of the new thread (as shown by the value of C<threads->tid>). Multiple "begin"
+subroutines can be chained together if necessary.
+
+The third feature is that you can specify a subroutine that will be executed
 B<after> the thread is done, but B<before> the thread returns to the parent
-thread.  Multiple "end" subroutines can be chained together if necessary.
+thread.  This is similar to the END subroutine, but on a thread basis.
+Multiple "end" subroutines can be chained together if necessary.
+
+=head1 CLASS METHODS
+
+These are the class methods.
+
+=head2 begin
+
+ Thread::Exit->begin( 'begin' );             # execute "begin"
+
+ Thread::Exit->begin( undef );               # don't execute anything
+
+ Thread::Exit->begin( 'module::before',-1 ); # execute "module::before" first
+
+ Thread::Exit->begin( \&after,1 );           # execute "after" last
+
+ $begin = Thread::Exit->begin;               # return current code reference
+
+The "begin" class method sets and returns the subroutine that will be executed
+B<after> the current thread is started but B<before> it starts the actual
+subroutine of which the thread consists.  It is similar to the CLONE
+subroutine, but is really executed in the context of the thread (whereas
+CLONE currently fakes this for performance reasons, causing XS routines and
+threads->tid to be executed in the wrong context).
+
+The first input parameter is the name or a reference to the subroutine that
+should be executed before this thread really starts.  It can be specified as a
+name or as a code reference.  No changes will be made if no parameters are
+specified.  If the first parameter is undef()ined or empty, then no subroutine
+will be executed when this thread has started.
+
+The second input parameter only has meaning if there has been a "begin"
+subroutine specified before.  The following values are recognized:
+
+=over 2
+
+=item replace (0)
+
+If the value B<0> is specified, then the new subroutine specification will
+B<replace> any current "begin" subroutine specification done earlier.  This is
+the default.
+
+=item after (1)
+
+If the value B<1> is specified, then the subroutine specificed will be
+executed B<after> any other "begin" subroutine that was specified earlier.
+
+=item before (-1)
+
+If the value B<-1> is specified, then the subroutine specificed will be
+executed B<before> any other "begin" subroutine that was specified earlier.
+
+=back
+
+By default, new threads inherit the settings of the "begin" subroutine.
+Check the L<inherit> method to change this.
+
+=head2 end
+
+ Thread::Exit->end( 'end' );               # execute "end"
+
+ Thread::Exit->end( undef );               # don't execute anything
+
+ Thread::Exit->end( 'module::before',-1 ); # execute "module::before" first
+
+ Thread::Exit->end( \&after,1 );           # execute "after" last
+
+ $end = Thread::Exit->end;                 # return current code reference
+
+The "end" class method sets and returns the subroutine that will be executed
+B<after> the current thread is finished but B<before> it will return via a
+join().
+
+The first input parameter is the name or a reference to the subroutine that
+should be executed after this thread is finished.  It can be specified as a
+name or as a code reference.  No changes will be made if no parameters are
+specified.  If the first parameter is undef()ined or empty, then no subroutine
+will be executed when this thread ends.
+
+The second input parameter only has meaning if there has been an "end"
+subroutine specified before.  The following values are recognized:
+
+=over 2
+
+=item replace (0)
+
+If the value B<0> is specified, then the new subroutine specification will
+B<replace> any current "end" subroutine specification done earlier.  This is
+the default.
+
+=item after (1)
+
+If the value B<1> is specified, then the subroutine specificed will be
+executed B<after> any other "end" subroutine that was specified earlier.
+
+=item before (-1)
+
+If the value B<-1> is specified, then the subroutine specificed will be
+executed B<before> any other "end" subroutine that was specified earlier.
+
+=back
+
+By default, new threads inherit the settings of the "end" subroutine.
+Check the L<inherit> method to change this.
+
+=head2 inherit
+
+ Thread::Exit->inherit( 1 );         # default, new threads inherit
+
+ Thread::Exit->inherit( 0 );         # new threads don't inherit
+
+ $inherit = Thread::Exit->inherit;   # return current setting
+
+The "inherit" class method sets and returns whether newly created threads
+will inherit the "begin" and "end" subroutine settings (as previously
+indicated with a call to the L<begin> or L<end> class methods).
+
+If an input parameter is specified, it indicates the new setting of this flag.
+A true value indicates that new threads should inherit the "begin" and "end"
+subroutine settings.  A false value indicates that new threads should B<not>
+have any "begin" or "end" subroutine (unless of course specified otherwise
+inside the thread after the thread has started).
+
+The default settings is B<1>, causing L<begin> and L<end> settings to be
+inherited by newly created threads.
+
+=head2 ismain
+
+ Thread::Exit->ismain;
+
+The "ismain" class method is only needed in very special situation.  It marks
+the current thread as the "main" thread from which a "real" exit() should
+occur.
+
+By default, only the thread in which the C<use Thread::Exit> occurred, will
+perform a "real" exit (either to CORE::exit() or to Apache::exit() when in a
+mod_perl environment).  This may however, not always be right.  In those cases
+you can use this class method.
 
 =head1 MOD_PERL
 
 To allow this module to function under Apache with mod_perl, a special check
-is included for the existence of the Apache::exit() subroutine.  If that exists,
-that exit routine will be preferred above the CORE::exit() routine when exiting
-from the thread in which the first C<use Thread::Exit> occurred.
-
-This may need further fine-tuning when I've actually tried this with Apache
-myself.
+is included for the existence of the Apache::exit() subroutine.  If the
+Apache::exit() subroutine exists, then that exit routine will be preferred
+over the CORE::exit() routine when exiting from the thread in which the
+first C<use Thread::Exit> occurred.
 
 =head1 CAVEATS
 

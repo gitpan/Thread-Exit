@@ -1,2 +1,23 @@
+0.02	5 September 2002
+	Added "begin" subroutine support + documentation + test-suite.
+	Nick Ing-Simmons suggested this on p5p.  It seemed like an easy
+	thing to add.  And it was.
+
+	Since "begin" would make an automatic = 1 as the default much more
+	sensible, I've changed the default behaviour to have threads
+	automatically inherit any "begin" and "end" subroutine specifications.
+	And to make the naming of the subroutines more consistent, "automatic"
+	was renamed to "inherit".  All of this makes it incompatible with
+	0.01, so it was released as soon as possible on the same day as 0.01.
+
+	Added class method documentation.
+
+	Added support for "ismain" class method, to mark the current thread
+	as the "main" thread from which a "real" exit() should occur.
+
+	Fixed some documentation nits.
+
+	Oops, VERSION file was wrong.  It now correctly shows 0.02.
+
 0.01	5 September 2002
 	First version of Thread::Exit.

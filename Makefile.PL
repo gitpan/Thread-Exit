@@ -6,7 +6,7 @@ WriteMakefile (
  NAME		=> "Thread::Exit",
  ($[ >= 5.005) ?
  (AUTHOR	=> 'Elizabeth Mattijsen (liz@dijkmat.nl)',
-  ABSTRACT	=> 'provide thread-local exit() and END {}') : (),
+  ABSTRACT	=> 'provide thread-local exit(), BEGIN {} and END {}') : (),
  VERSION_FROM	=> 'lib/Thread/Exit.pm',
  PREREQ_PM	=> {
 		   Thread::Serialize => '0.02',

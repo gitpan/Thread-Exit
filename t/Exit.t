@@ -6,16 +6,17 @@ BEGIN {				# Magic Perl CORE pragma
 }
 
 use Thread::Exit; # cannot have Test use this, otherwise exit() isn't changed
-use Test::More tests => 15;
+use Test::More tests => 21;
 
 use threads;
 use threads::shared;
 
 use_ok( 'Thread::Exit' ); # just for the record
 can_ok( 'Thread::Exit',qw(
- automatic
  end
  import
+ inherit
+ ismain
 ) );
 
 my $check = "This is the check string";
@@ -35,26 +36,34 @@ is( join('',$thread->join),$check.$check,	'check exit from thread' );
 $thread = threads->new( sub { exit( $check ) } );
 is( join('',$thread->join),$check,		'check exit from thread' );
 
-my $result : shared = '';
-ok( Thread::Exit->end( 'end' ),'check end() setting' );
+my $begin : shared = '';
+my $end : shared = '';
+ok( Thread::Exit->begin( 'begin' ),		'check begin() setting' );
+ok( Thread::Exit->end( 'main::end' ),		'check end() setting' );
 
-threads->new( sub {} )->join;
-is( $result,'',					'check result of END' );
+threads->new( sub { is( $begin,$check,'check result of BEGIN' ) } )->join;
+is( $end,$check,				'check result of END' );
 
-ok( Thread::Exit->automatic( 1 ),		'check automatic() setting' );
-threads->new( sub {} )->join;
-is( $result,$check,				'check result of END' );
+$begin = $end = '';
+ok( !Thread::Exit->inherit( 0 ),		'check inherit() setting' );
+threads->new( sub { is( $begin,'','check result of BEGIN' ) } )->join;
+is( $end,'',					'check result of END' );
 
-$result = '';
-ok( !Thread::Exit->automatic( 0 ),		'check automatic() setting' );
-threads->new( sub {} )->join;
-is( $result,'', 				'check result of END' );
+ok( Thread::Exit->inherit( 1 ),			'check inherit() setting' );
+threads->new( sub { is( $begin,$check,'check result of BEGIN' ) } )->join;
+is( $end,$check, 				'check result of END' );
 
-threads->new( sub { Thread::Exit->end( \&end ) } )->join;
-is( $result,$check, 				'check result of END' );
+$begin = $end = '';
+ok( !Thread::Exit->end( undef ),		'check end() setting' );
+threads->new( sub {
+ Thread::Exit->end( \&end );
+ is( $begin,$check,'check result of BEGIN' );
+} )->join;
+is( $end,$check, 				'check result of END' );
 
-eval q(sub Apache::exit { $result = shift });
+eval q(sub Apache::exit { $end = shift });
 exit( '' );
-is( $result,'', 				'check result of exit()' );
+is( $end,'', 				'check result of exit()' );
 
-sub end {$result = $check}
+sub begin { $begin = $check}
+sub end   { $end   = $check}
