@@ -3,7 +3,7 @@ package Thread::Exit;
 # Make sure we have version info for this module
 # Make sure we do everything by the book from now on
 
-$VERSION = '0.08';
+$VERSION = '0.09';
 use strict;
 
 # Make sure we only load stuff when we actually need it
@@ -439,6 +439,10 @@ By default, only the thread in which the C<use Thread::Exit> occurred, will
 perform a "real" exit (either to CORE::exit() or to Apache::exit() when in a
 mod_perl environment).  This may however, not always be right.  In those cases
 you can use this class method.
+
+=head1 REQUIRED MODULES
+
+ load (0.12)
 
 =head1 MOD_PERL
 

@@ -1,3 +1,6 @@
+0.09	28 December 2003
+	Added automatic required modules update using Devel::Required.
+
 0.08	20 November 2003
 	You can't unlink an open file on Win32.  Fixed problem in the
 	test-suite.
