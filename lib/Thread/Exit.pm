@@ -3,7 +3,7 @@ package Thread::Exit;
 # Make sure we have version info for this module
 # Make sure we do everything by the book from now on
 
-$VERSION = '0.07';
+$VERSION = '0.08';
 use strict;
 
 # Make sure we only load stuff when we actually need it

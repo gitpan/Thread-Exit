@@ -1,3 +1,7 @@
+0.08	20 November 2003
+	You can't unlink an open file on Win32.  Fixed problem in the
+	test-suite.
+
 0.07	8 October 2003
 	Added dependency on load.pm, as that was somehow missed before.
 

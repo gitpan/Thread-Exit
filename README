@@ -1,9 +1,24 @@
 README for Thread::Exit
 
-This module add two features to threads that are sorely missed by some: a
-thread local exit() (that only exits the thread and not the whole program)
-and the equivalent of an END subroutine (which is executed when the thread
-is done, but before the thread returns).
+This module adds three features to threads that are sorely missed by some.
+
+The first feature is that you can use exit() within a thread to return() from
+that thread only.  Without this module, exit() stops all threads and exits
+to the calling process (which usually is the operating system).  With this
+module, exit() functions just as return() (including passing back values to
+the parent thread).
+
+The second feature is that you can specify a subroutine that will be executed
+after the thread is started, but before the subroutine of which the
+thread consists, is started.  This is an alternate implementation of the
+CLONE subroutine, which differs by being really executed inside the context
+of the new thread (as shown by the value of threads->tid). Multiple "begin"
+subroutines can be chained together if necessary.
+
+The third feature is that you can specify a subroutine that will be executed
+after the thread is done, but before the thread returns to the parent
+thread.  This is similar to the END subroutine, but on a per-thread basis.
+Multiple "end" subroutines can be chained together if necessary.
 
                          *** A note of CAUTION ***
 
@@ -13,7 +28,7 @@ any version of Perl before 5.8.0 or without threads enabled.
 
                          *************************
 
-Copyright (c) 2002 Elizabeth Mattijsen <liz@dijkmat.nl>. All rights
+Copyright (c) 2002-2003 Elizabeth Mattijsen <liz@dijkmat.nl>. All rights
 reserved.  This program is free software; you can redistribute it and/or
 modify it under the same terms as Perl itself.
 

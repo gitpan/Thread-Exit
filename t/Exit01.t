@@ -19,7 +19,7 @@ EOD
 } #BEGIN
 
 use Thread::Exit; # cannot have Test use this, otherwise exit() isn't changed
-use Test::More tests => 26;
+use Test::More tests => 27;
 use strict;
 use warnings;
 
@@ -89,7 +89,8 @@ ok( print( $handle (<<EOD)),		'check printing to file' );
 use Thread::Exit ();
 threads->create( sub {Thread::Exit->ismain; exit( 1 )} )->join;
 EOD
-cmp_ok( system( "$^X script" ),'==',256,'check exit result' );
+ok( close( $handle ),                   'check closing of pipe' );
+cmp_ok( system( "$^X $file" ),'==',256, 'check exit result' );
 ok( unlink( $file ),			'check unlinking' );
 
 sub begin { $begin = $check}
